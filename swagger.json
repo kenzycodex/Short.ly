@@ -1,0 +1,1344 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Short.ly API Documentation",
+        "version": "1.0.0",
+        "description": "API documentation for the Short.ly URL shortener service",
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "contact": {
+            "name": "API Support",
+            "url": "https://short.ly/support",
+            "email": "support@short.ly"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:3000",
+            "description": "Development server"
+        },
+        {
+            "url": "https://api-mvp.short.ly",
+            "description": "MVP server"
+        },
+        {
+            "url": "https://api.short.ly",
+            "description": "Production server"
+        }
+    ],
+    "tags": [
+        {
+            "name": "URLs",
+            "description": "URL shortening operations"
+        },
+        {
+            "name": "Analytics",
+            "description": "URL analytics operations"
+        },
+        {
+            "name": "Redirect",
+            "description": "URL redirection operations"
+        }
+    ],
+    "paths": {
+        "/api/v1/urls": {
+            "post": {
+                "summary": "Create a new short URL",
+                "tags": [
+                    "URLs"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "originalUrl"
+                                ],
+                                "properties": {
+                                    "originalUrl": {
+                                        "type": "string",
+                                        "description": "The original URL to shorten",
+                                        "example": "https://example.com/very/long/path/to/page.html"
+                                    },
+                                    "customAlias": {
+                                        "type": "string",
+                                        "description": "Optional custom alias",
+                                        "example": "my-page"
+                                    },
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "description": "Optional expiration date",
+                                        "example": "2023-12-31T23:59:59Z"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "URL created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Url"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Custom alias already in use",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get all URLs (admin only)",
+                "tags": [
+                    "URLs"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        },
+                        "description": "Page number"
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "description": "Results per page"
+                    },
+                    {
+                        "in": "query",
+                        "name": "isActive",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Filter by active status"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URLs retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "urls": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Url"
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "totalCount": {
+                                                            "type": "integer",
+                                                            "example": 42
+                                                        },
+                                                        "page": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "totalPages": {
+                                                            "type": "integer",
+                                                            "example": 5
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Admin access required",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/urls/{shortCode}": {
+            "get": {
+                "summary": "Get details of a URL by short code",
+                "tags": [
+                    "URLs"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Url"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "summary": "Update a URL",
+                "tags": [
+                    "URLs"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "isActive": {
+                                        "type": "boolean",
+                                        "description": "Set the URL active status"
+                                    },
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "description": "Update expiration date"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "URL updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Url"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a URL",
+                "tags": [
+                    "URLs"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "URL deleted successfully"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/urls/user/me": {
+            "get": {
+                "summary": "Get URLs for the authenticated user",
+                "tags": [
+                    "URLs"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        },
+                        "description": "Page number"
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "description": "Results per page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URLs retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "urls": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Url"
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "totalCount": {
+                                                            "type": "integer",
+                                                            "example": 42
+                                                        },
+                                                        "page": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "totalPages": {
+                                                            "type": "integer",
+                                                            "example": 5
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/urls/alias/{alias}/check": {
+            "get": {
+                "summary": "Check if a custom alias is available",
+                "tags": [
+                    "URLs"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "alias",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The custom alias to check"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alias availability checked successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "alias": {
+                                                    "type": "string",
+                                                    "example": "my-page"
+                                                },
+                                                "isAvailable": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/{shortCode}": {
+            "get": {
+                "summary": "Get analytics for a URL",
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    },
+                    {
+                        "in": "query",
+                        "name": "view",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "summary",
+                                "clicks",
+                                "referrers",
+                                "browsers",
+                                "devices",
+                                "os",
+                                "locations",
+                                "timeSeries"
+                            ],
+                            "default": "summary"
+                        },
+                        "description": "Analytics view type"
+                    },
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "Start date filter"
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "description": "End date filter"
+                    },
+                    {
+                        "in": "query",
+                        "name": "interval",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "day",
+                                "hour"
+                            ],
+                            "default": "day"
+                        },
+                        "description": "Time interval for time series data"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "url": {
+                                                    "$ref": "#/components/schemas/Url"
+                                                },
+                                                "view": {
+                                                    "type": "string",
+                                                    "example": "summary"
+                                                },
+                                                "analytics": {
+                                                    "oneOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/AnalyticsSummary"
+                                                        },
+                                                        {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/ClickData"
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "name": {
+                                                                        "type": "string",
+                                                                        "example": "Chrome"
+                                                                    },
+                                                                    "count": {
+                                                                        "type": "integer",
+                                                                        "example": 42
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete analytics for a URL",
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytics deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Analytics deleted successfully"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/record": {
+            "post": {
+                "summary": "Manually record a click event for a URL",
+                "tags": [
+                    "Analytics"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "shortCode"
+                                ],
+                                "properties": {
+                                    "shortCode": {
+                                        "type": "string",
+                                        "description": "The short code of the URL"
+                                    },
+                                    "ip": {
+                                        "type": "string",
+                                        "description": "IP address of the visitor"
+                                    },
+                                    "userAgent": {
+                                        "type": "string",
+                                        "description": "User agent string"
+                                    },
+                                    "referrer": {
+                                        "type": "string",
+                                        "description": "Referrer URL"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Click recorded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Click recorded successfully"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/dashboard": {
+            "get": {
+                "summary": "Get dashboard analytics (admin only)",
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dashboard analytics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "totalUrls": {
+                                                    "type": "integer",
+                                                    "example": 1024
+                                                },
+                                                "recentClicks": {
+                                                    "type": "integer",
+                                                    "example": 156
+                                                },
+                                                "topUrls": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "shortCode": {
+                                                                "type": "string",
+                                                                "example": "2g3ab7c"
+                                                            },
+                                                            "originalUrl": {
+                                                                "type": "string",
+                                                                "example": "https://example.com/page"
+                                                            },
+                                                            "totalClicks": {
+                                                                "type": "integer",
+                                                                "example": 1024
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "lastUpdated": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Admin access required",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/{shortCode}": {
+            "get": {
+                "summary": "Redirect to the original URL",
+                "tags": [
+                    "Redirect"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to the original URL",
+                        "headers": {
+                            "Location": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "description": "The original URL"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "410": {
+                        "description": "URL has been deactivated or expired",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/resolve/{shortCode}": {
+            "get": {
+                "summary": "Resolve a short URL without redirecting",
+                "tags": [
+                    "Redirect"
+                ],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "shortCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "The short code of the URL"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL resolved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "originalUrl": {
+                                                    "type": "string",
+                                                    "example": "https://example.com/very/long/path/to/page.html"
+                                                },
+                                                "shortCode": {
+                                                    "type": "string",
+                                                    "example": "2g3ab7c"
+                                                },
+                                                "shortUrl": {
+                                                    "type": "string",
+                                                    "example": "https://short.ly/2g3ab7c"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "410": {
+                        "description": "URL has been deactivated or expired",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Url": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "60d21b4667d0d8992e610c85"
+                    },
+                    "originalUrl": {
+                        "type": "string",
+                        "example": "https://example.com/very/long/path/to/page.html"
+                    },
+                    "shortCode": {
+                        "type": "string",
+                        "example": "2g3ab7c"
+                    },
+                    "shortUrl": {
+                        "type": "string",
+                        "example": "https://short.ly/2g3ab7c"
+                    },
+                    "customAlias": {
+                        "type": "string",
+                        "example": "my-page",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "properties": {
+                            "totalClicks": {
+                                "type": "integer",
+                                "example": 42
+                            },
+                            "lastAccessed": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            }
+                        }
+                    }
+                }
+            },
+            "ClickData": {
+                "type": "object",
+                "properties": {
+                    "ip": {
+                        "type": "string",
+                        "example": "192.168.xxx"
+                    },
+                    "referrer": {
+                        "type": "string",
+                        "example": "https://google.com",
+                        "nullable": true
+                    },
+                    "userAgent": {
+                        "type": "string",
+                        "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                    },
+                    "device": {
+                        "type": "object",
+                        "properties": {
+                            "browser": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Chrome"
+                                    },
+                                    "version": {
+                                        "type": "string",
+                                        "example": "91.0.4472.124"
+                                    }
+                                }
+                            },
+                            "os": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Windows"
+                                    },
+                                    "version": {
+                                        "type": "string",
+                                        "example": "10"
+                                    }
+                                }
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "desktop",
+                                    "mobile",
+                                    "tablet",
+                                    "unknown"
+                                ],
+                                "example": "desktop"
+                            }
+                        }
+                    },
+                    "location": {
+                        "type": "object",
+                        "properties": {
+                            "country": {
+                                "type": "string",
+                                "example": "US"
+                            },
+                            "region": {
+                                "type": "string",
+                                "example": "California"
+                            },
+                            "city": {
+                                "type": "string",
+                                "example": "San Francisco"
+                            },
+                            "coordinates": {
+                                "type": "object",
+                                "properties": {
+                                    "latitude": {
+                                        "type": "number",
+                                        "example": 37.7749
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "example": -122.4194
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "AnalyticsSummary": {
+                "type": "object",
+                "properties": {
+                    "totalClicks": {
+                        "type": "integer",
+                        "example": 1024
+                    },
+                    "referrers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "referrer": {
+                                    "type": "string",
+                                    "example": "https://google.com"
+                                },
+                                "count": {
+                                    "type": "integer",
+                                    "example": 512
+                                }
+                            }
+                        }
+                    },
+                    "browsers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "browser": {
+                                    "type": "string",
+                                    "example": "Chrome"
+                                },
+                                "count": {
+                                    "type": "integer",
+                                    "example": 768
+                                }
+                            }
+                        }
+                    },
+                    "devices": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "device": {
+                                    "type": "string",
+                                    "example": "desktop"
+                                },
+                                "count": {
+                                    "type": "integer",
+                                    "example": 768
+                                }
+                            }
+                        }
+                    },
+                    "locations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "country": {
+                                    "type": "string",
+                                    "example": "US"
+                                },
+                                "count": {
+                                    "type": "integer",
+                                    "example": 768
+                                }
+                            }
+                        }
+                    },
+                    "clicksOverTime": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "date": {
+                                    "type": "string",
+                                    "example": "2023-01-01"
+                                },
+                                "count": {
+                                    "type": "integer",
+                                    "example": 42
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "message": {
+                                "type": "string",
+                                "example": "An error occurred"
+                            },
+                            "status": {
+                                "type": "integer",
+                                "example": 400
+                            },
+                            "errors": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "param": {
+                                            "type": "string",
+                                            "example": "originalUrl"
+                                        },
+                                        "msg": {
+                                            "type": "string",
+                                            "example": "Invalid URL format"
+                                        },
+                                        "location": {
+                                            "type": "string",
+                                            "example": "body"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

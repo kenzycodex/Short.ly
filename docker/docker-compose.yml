@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # API service
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: shortly-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - APP_ENV=development
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/shortlydb_dev
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ../src:/app/src
+      - ../node_modules:/app/node_modules
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - shortly-network
+
+  # MongoDB service
+  mongo:
+    image: mongo:latest
+    container_name: shortly-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - shortly-mongo-data:/data/db
+    networks:
+      - shortly-network
+
+  # Redis service
+  redis:
+    image: redis:alpine
+    container_name: shortly-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - shortly-redis-data:/data
+    networks:
+      - shortly-network
+
+  # MongoDB admin UI (optional)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: shortly-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=password
+    depends_on:
+      - mongo
+    networks:
+      - shortly-network
+
+  # Redis admin UI (optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: shortly-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - shortly-network
+
+networks:
+  shortly-network:
+    driver: bridge
+
+volumes:
+  shortly-mongo-data:
+  shortly-redis-data:
